@@ -1,0 +1,762 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Retenza Pro | Customer Intelligence Platform</title>
+<meta name="description" content="Interactive customer analytics, churn intelligence and retention insights dashboard.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<style>
+:root{
+ --bg:#f5f7fc;--surface:#fff;--surface2:#f8f9fd;
+ --text:#18213b;--muted:#7c879f;--border:#e8ebf4;
+ --primary:#6558ee;--primary2:#8878ff;--purple:#b5a7ff;
+ --green:#159d78;--red:#e45d75;--amber:#d99b30;
+ --cyan:#2f9ac7;--shadow:0 12px 40px #27325b0b;
+}
+[data-theme=dark]{
+ --bg:#0d1322;--surface:#151d30;--surface2:#1a2539;
+ --text:#f0f3ff;--muted:#a0acc3;--border:#29364e;
+ --primary:#9b91ff;--primary2:#b2aaff;--purple:#7467d8;
+ --green:#4bd6ae;--red:#ff879b;--amber:#ffd078;
+ --cyan:#6bc7ee;--shadow:0 12px 40px #0002;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth;scroll-padding-top:25px}
+body{margin:0;background:var(--bg);color:var(--text);font-family:"DM Sans",sans-serif;font-size:13px;transition:background .2s,color .2s}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid #8878ff70;outline-offset:2px}
+h1,h2,h3,p{margin-top:0}
+h1,h2,h3,.brand,.metric{font-family:Manrope,sans-serif}
+button,.nav,.tag,.metric-label{font-weight:700}
+.app{min-height:100vh}
+.sidebar{width:255px;position:fixed;inset:0 auto 0 0;background:var(--surface);border-right:1px solid var(--border);padding:26px 17px;display:flex;flex-direction:column;z-index:10}
+.brand{font-size:23px;font-weight:800;letter-spacing:-1.2px;padding:0 10px 27px}
+.brand b{color:var(--primary)}
+.brand em{font-style:normal;font-size:9px;letter-spacing:1px;background:#eeeaff;color:#6252db;padding:5px 7px;border-radius:6px;vertical-align:middle}
+.workspace{font-size:9px;letter-spacing:1.7px;color:var(--muted);font-weight:800;padding:9px 12px}
+.nav{display:flex;align-items:center;gap:12px;text-decoration:none;color:var(--muted);padding:12px;border-radius:11px;margin:3px 0;font-size:12px;transition:.18s}
+.nav .ico{width:20px;text-align:center;font-size:17px}
+.nav:hover,.nav.active{color:var(--primary);background:color-mix(in srgb,var(--primary) 10%,transparent)}
+.side-bottom{margin-top:auto}
+.side-note{background:var(--surface2);border:1px solid var(--border);padding:15px;border-radius:14px;font-size:11px;color:var(--muted);line-height:1.7}
+.side-note strong{display:block;color:var(--text);margin-bottom:4px}
+.live-dot{display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--green);margin-right:6px}
+main{margin-left:255px;max-width:1800px;padding:30px 34px 20px}
+.topbar{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:28px}
+.kicker{font-size:10px;letter-spacing:1.6px;font-weight:800;color:var(--primary);text-transform:uppercase}
+h1{font-size:clamp(25px,3vw,36px);letter-spacing:-1.5px;margin:8px 0 8px;font-weight:800;line-height:1.2}
+.subtitle{font-size:12px;color:var(--muted);line-height:1.8;max-width:670px}
+.top-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.btn{border:1px solid var(--border);background:var(--surface);color:var(--text);border-radius:10px;padding:11px 14px;font-size:11px;font-weight:700;transition:.18s}
+.btn:hover{transform:translateY(-1px);box-shadow:var(--shadow)}
+.btn.primary{background:var(--primary);border-color:var(--primary);color:white}
+.btn.soft{background:color-mix(in srgb,var(--primary) 9%,var(--surface));color:var(--primary);border-color:transparent}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+.section{margin:0 0 20px;scroll-margin-top:20px}
+.section-head{display:flex;align-items:flex-end;justify-content:space-between;gap:15px;margin-bottom:13px}
+.section-head h2{font-size:16px;letter-spacing:-.5px;margin:0 0 5px}
+.section-head p{font-size:11px;color:var(--muted);margin:0;line-height:1.6}
+.tag{display:inline-flex;align-items:center;gap:5px;padding:7px 10px;border-radius:8px;border:1px solid var(--border);color:var(--muted);font-size:9px;white-space:nowrap}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:21px}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:17px;padding:20px;box-shadow:var(--shadow);min-width:0}
+.metric-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.metric-label{font-size:11px;color:var(--muted)}
+.metric-icon{width:36px;height:36px;display:grid;place-items:center;border-radius:11px;font-size:16px;background:color-mix(in srgb,var(--primary) 10%,transparent);color:var(--primary)}
+.metric{font-size:clamp(22px,2.2vw,31px);font-weight:800;letter-spacing:-1.2px;margin:17px 0 7px;overflow-wrap:anywhere}
+.metric-foot{font-size:10px;color:var(--muted);line-height:1.7}
+.positive{color:var(--green);font-weight:700}
+.warning{color:var(--amber);font-weight:700}
+.negative{color:var(--red);font-weight:700}
+.grid2{display:grid;grid-template-columns:minmax(0,1.45fr) minmax(300px,1fr);gap:16px}
+.grid3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.chart-panel{min-height:320px}
+.chart-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.chart-head h3,.panel h3{font-size:13px;margin:0 0 5px;letter-spacing:-.25px}
+.small{font-size:10px;color:var(--muted);line-height:1.7}
+.chartbox{height:250px;margin-top:19px;position:relative}
+.chartbox.short{height:210px}
+.chartbox canvas{max-height:100%}
+.insight-list{display:grid;gap:10px;margin-top:18px}
+.insight{display:flex;gap:11px;padding:13px;background:var(--surface2);border:1px solid var(--border);border-radius:12px}
+.insight-icon{width:32px;height:32px;border-radius:10px;display:grid;place-items:center;background:color-mix(in srgb,var(--primary) 11%,transparent);color:var(--primary);flex-shrink:0;font-size:15px}
+.insight strong{font-size:11px;display:block;margin:1px 0 5px}
+.insight p{font-size:10px;line-height:1.7;color:var(--muted);margin:0;overflow-wrap:anywhere}
+.upload-zone{border:1.5px dashed color-mix(in srgb,var(--primary) 45%,var(--border));border-radius:15px;background:color-mix(in srgb,var(--primary) 4%,var(--surface));padding:22px;display:flex;align-items:center;justify-content:space-between;gap:18px;flex-wrap:wrap}
+.upload-left{display:flex;align-items:center;gap:14px}
+.upload-icon{width:49px;height:49px;border-radius:14px;background:color-mix(in srgb,var(--primary) 12%,transparent);display:grid;place-items:center;font-size:23px;color:var(--primary)}
+.upload-left h3{font-size:13px;margin:0 0 5px}
+.upload-left p{font-size:10px;color:var(--muted);margin:0;line-height:1.7}
+.upload-actions{display:flex;gap:8px;flex-wrap:wrap}
+#fileInput{display:none}
+.progress{height:5px;border-radius:5px;background:var(--border);overflow:hidden;margin-top:13px}
+.progress span{display:block;height:100%;width:0;background:var(--primary);transition:width .25s}
+.toolbar{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:18px 0}
+.searchbox{position:relative;flex:1;min-width:200px;max-width:350px}
+.searchbox input{width:100%;background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:12px 13px;font-size:11px}
+.filters{display:flex;gap:8px;flex-wrap:wrap}
+.filters select,.field{background:var(--surface2);color:var(--text);border:1px solid var(--border);border-radius:10px;padding:11px;font-size:10px;max-width:100%}
+.tablewrap{overflow:auto;border:1px solid var(--border);border-radius:12px}
+table{width:100%;border-collapse:collapse;min-width:760px}
+th{text-align:left;font-size:9px;color:var(--muted);letter-spacing:.7px;text-transform:uppercase;padding:14px 13px;background:var(--surface2);white-space:nowrap}
+td{padding:13px;border-top:1px solid var(--border);font-size:11px;white-space:nowrap}
+tbody tr:hover{background:color-mix(in srgb,var(--primary) 4%,var(--surface))}
+.namecell{display:flex;align-items:center;gap:10px}
+.avatar{width:33px;height:33px;display:grid;place-items:center;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);border-radius:10px;font-size:10px;font-weight:800}
+.namecell strong{font-size:11px;display:block}
+.namecell small{display:block;font-size:9px;color:var(--muted);margin-top:3px}
+.status{font-size:9px;padding:6px 8px;border-radius:7px;font-weight:800;display:inline-block}
+.status.risk{background:#d99b3018;color:var(--amber)}
+.status.churn{background:#e45d7518;color:var(--red)}
+.status.healthy{background:#159d7818;color:var(--green)}
+.riskbar{display:flex;align-items:center;gap:8px}
+.risktrack{width:55px;height:5px;background:var(--border);border-radius:8px;overflow:hidden}
+.risktrack span{display:block;height:100%;border-radius:8px}
+.tablefoot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding-top:13px;font-size:10px;color:var(--muted)}
+.tablefoot .btn{padding:8px 11px}
+.segment-list{display:grid;gap:17px;margin-top:24px}
+.segment-row{display:grid;grid-template-columns:105px 1fr 42px;align-items:center;gap:10px;font-size:11px}
+.segment-track{height:9px;border-radius:10px;background:var(--surface2);overflow:hidden}
+.segment-track span{height:100%;display:block;border-radius:10px;transition:width .3s}
+.segment-count{text-align:right;font-weight:800}
+.quality-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:18px}
+.quality-item{background:var(--surface2);padding:13px;border-radius:11px;border:1px solid var(--border)}
+.quality-item strong{display:block;font-family:Manrope;font-size:21px;margin:8px 0 4px}
+.quality-item span{font-size:10px;color:var(--muted)}
+.recommendation{border:1px solid var(--border);border-radius:13px;padding:15px;display:flex;gap:12px;margin-top:10px}
+.rec-num{flex-shrink:0;width:30px;height:30px;border-radius:9px;background:color-mix(in srgb,var(--primary) 12%,transparent);color:var(--primary);display:grid;place-items:center;font-weight:800}
+.recommendation h3{font-size:12px;margin:2px 0 6px}
+.recommendation p{font-size:10px;color:var(--muted);line-height:1.8;margin:0}
+.doc-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:15px}
+.doc-card{background:var(--surface2);border:1px solid var(--border);border-radius:13px;padding:16px}
+.doc-card .doc-icon{font-size:19px;margin-bottom:12px}
+.doc-card h3{font-size:12px;margin-bottom:7px}
+.doc-card p{font-size:10px;line-height:1.8;color:var(--muted);margin:0}
+.empty{text-align:center;color:var(--muted);padding:35px 15px;font-size:11px}
+.notice{padding:12px 14px;border-radius:11px;background:color-mix(in srgb,var(--amber) 10%,var(--surface));border:1px solid color-mix(in srgb,var(--amber) 30%,var(--border));font-size:10px;line-height:1.8;color:var(--text);margin-top:13px}
+.footer{padding:25px 0 8px;text-align:center;font-size:10px;color:var(--muted);line-height:1.8}
+.toast{position:fixed;bottom:22px;right:22px;z-index:30;max-width:calc(100% - 35px);background:var(--text);color:var(--surface);padding:14px 18px;border-radius:12px;font-size:11px;box-shadow:var(--shadow);opacity:0;transform:translateY(10px);pointer-events:none;transition:.25s}
+.toast.show{opacity:1;transform:translateY(0)}
+.modal{position:fixed;inset:0;z-index:25;background:#10162990;display:none;align-items:center;justify-content:center;padding:18px}
+.modal.open{display:flex}
+.modal-box{width:min(650px,100%);max-height:85vh;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:24px}
+.modal-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start}
+.modal-head h2{font-size:20px;margin:0 0 7px}
+.detail-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:20px}
+.detail{padding:13px;border:1px solid var(--border);border-radius:11px;background:var(--surface2);overflow-wrap:anywhere}
+.detail small{display:block;color:var(--muted);font-size:9px;margin-bottom:7px}
+.detail strong{font-size:12px;overflow-wrap:anywhere}
+@media(min-width:1500px){main{padding:36px 45px}.panel{padding:23px}}
+@media(max-width:1150px){.sidebar{width:215px}main{margin-left:215px;padding:24px}.metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}.grid3{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:700px){
+ .sidebar{position:relative;width:100%;height:auto;padding:13px;border-right:0;border-bottom:1px solid var(--border)}
+ .brand{padding:3px 8px 14px}.workspace,.side-bottom{display:none}
+ .sidebar nav{display:flex;gap:4px;overflow-x:auto}.nav{flex-shrink:0;padding:10px;font-size:10px;gap:6px}.nav .ico{font-size:14px;width:auto}
+ main{margin:0;padding:20px 13px}.topbar{align-items:flex-start;flex-direction:column;gap:15px}.top-actions{width:100%}.top-actions .btn{flex:1}
+ .metrics{gap:9px}.panel{padding:15px}.metric{font-size:24px}.grid3{grid-template-columns:1fr}.chartbox{height:225px}.chartbox.short{height:205px}
+ .quality-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.doc-grid{grid-template-columns:1fr}.upload-zone{padding:16px}.upload-actions{width:100%}.upload-actions .btn{flex:1}
+ .section-head{align-items:flex-start;flex-direction:column}.filters{width:100%}.filters select{flex:1;min-width:0}.searchbox{max-width:none}
+}
+@media(max-width:380px){.metrics{grid-template-columns:1fr}.quality-grid{grid-template-columns:1fr}.detail-grid{grid-template-columns:1fr}.metric{font-size:27px}}
+</style>
+</head>
+<body>
+    <div class="app">
+<aside class="sidebar">
+ <div class="brand">retenza<b>.pro</b> <em>INTELLIGENCE</em></div>
+ <div class="workspace">WORKSPACE</div>
+ <nav>
+  <a class="nav active" href="#overview"><span class="ico">▦</span> Overview</a>
+  <a class="nav" href="#analytics"><span class="ico">◷</span> Analytics</a>
+  <a class="nav" href="#customers"><span class="ico">♙</span> Customers</a>
+  <a class="nav" href="#segments"><span class="ico">◈</span> Segments</a>
+  <a class="nav" href="#quality"><span class="ico">✓</span> Data quality</a>
+  <a class="nav" href="#actions"><span class="ico">✧</span> Recommendations</a>
+  <a class="nav" href="#methodology"><span class="ico">▤</span> Project notes</a>
+ </nav>
+ <div class="side-bottom">
+  <div class="side-note"><strong><span class="live-dot"></span>Analytics engine ready</strong>Data is processed locally in your browser.<br><br><span id="sideDataset">Using built-in demonstration data</span></div>
+ </div>
+</aside>
+
+<main>
+<header class="topbar" id="overview">
+ <div>
+  <div class="kicker">Customer success / Intelligence platform</div>
+  <h1>Customer Intelligence<br>Dashboard<span style="color:var(--primary)">.</span></h1>
+  <div class="subtitle">Understand customer behavior, identify retention opportunities and turn your data into clear business decisions.</div>
+ </div>
+ <div class="top-actions">
+  <button class="btn" id="themeBtn">☾ Dark mode</button>
+  <button class="btn" id="resetBtn">↺ Reset demo</button>
+  <button class="btn primary" id="topExport">↓ Export report</button>
+ </div>
+</header>
+
+<section class="section" id="upload">
+ <div class="section-head">
+  <div><h2>Data workspace</h2><p>Upload your own customer CSV to refresh the dashboard and analysis.</p></div>
+  <span class="tag" id="dataBadge">● DEMO DATA</span>
+ </div>
+ <div class="upload-zone" id="dropZone">
+  <div class="upload-left">
+   <div class="upload-icon">⇧</div>
+   <div><h3 id="fileTitle">Bring your customer data to life</h3><p id="fileDesc">Choose a CSV file. Column names are detected automatically where possible.</p></div>
+  </div>
+  <div class="upload-actions">
+   <input id="fileInput" type="file" accept=".csv,text/csv">
+   <button class="btn primary" id="uploadBtn">↑ Upload Dataset</button>
+   <button class="btn" id="sampleBtn">View sample data</button>
+  </div>
+ </div>
+ <div class="progress" id="progress" hidden><span id="progressBar"></span></div>
+ <div class="notice" id="mappingNotice" hidden></div>
+</section>
+
+<section class="section">
+ <div class="section-head"><div><h2>Executive snapshot</h2><p id="snapshotCaption">A live summary of the currently loaded dataset.</p></div><span class="tag" id="lastUpdated">READY TO ANALYZE</span></div>
+ <div class="metrics">
+  <article class="panel"><div class="metric-top"><span class="metric-label">Total customers</span><span class="metric-icon">♙</span></div><div class="metric" id="mTotal">—</div><div class="metric-foot" id="mTotalFoot">Customer records loaded</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Recorded churn rate</span><span class="metric-icon" style="color:var(--red)">↗</span></div><div class="metric" id="mChurn">—</div><div class="metric-foot" id="mChurnFoot">Requires a churn / status column</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Monthly revenue</span><span class="metric-icon" style="color:var(--green)">₹</span></div><div class="metric" id="mRevenue">—</div><div class="metric-foot" id="mRevenueFoot">Sum of detected monthly charges</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Average customer value</span><span class="metric-icon" style="color:var(--cyan)">◉</span></div><div class="metric" id="mAvg">—</div><div class="metric-foot" id="mAvgFoot">Average monthly charge where available</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Customers at risk</span><span class="metric-icon" style="color:var(--amber)">⚠</span></div><div class="metric" id="mRisk">—</div><div class="metric-foot" id="mRiskFoot">Transparent rule-based risk estimate</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Average tenure</span><span class="metric-icon">◷</span></div><div class="metric" id="mTenure">—</div><div class="metric-foot">Based on detected tenure field</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Known churned customers</span><span class="metric-icon" style="color:var(--red)">↘</span></div><div class="metric" id="mChurned">—</div><div class="metric-foot">Observed outcomes, not predictions</div></article>
+  <article class="panel"><div class="metric-top"><span class="metric-label">Data completeness</span><span class="metric-icon" style="color:var(--green)">✓</span></div><div class="metric" id="mComplete">—</div><div class="metric-foot" id="mCompleteFoot">Non-empty cells across dataset</div></article>
+ </div>
+</section>
+
+<section class="section" id="analytics">
+ <div class="section-head"><div><h2>Analytics & exploration</h2><p>Visualize the patterns in your uploaded customer records.</p></div><span class="tag">INTERACTIVE CHARTS</span></div>
+ <div class="grid2">
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Customer outcome distribution</h3><div class="small">Recorded churn, retained customers and unknown outcomes.</div></div><span class="tag">01</span></div>
+   <div class="chartbox"><canvas id="outcomeChart"></canvas></div>
+  </article>
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Customer risk distribution</h3><div class="small">Rule-based screening of customers needing attention.</div></div><span class="tag">02</span></div>
+   <div class="chartbox"><canvas id="riskChart"></canvas></div>
+  </article>
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Revenue by contract</h3><div class="small">Compare monthly charges across contract categories.</div></div><span class="tag">03</span></div>
+   <div class="chartbox"><canvas id="contractChart"></canvas></div>
+  </article>
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Tenure profile</h3><div class="small">How long customers have stayed, grouped into bands.</div></div><span class="tag">04</span></div>
+   <div class="chartbox"><canvas id="tenureChart"></canvas></div>
+  </article>
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Customer value distribution</h3><div class="small">Number of customers in monthly charge ranges.</div></div><span class="tag">05</span></div>
+   <div class="chartbox"><canvas id="valueChart"></canvas></div>
+  </article>
+  <article class="panel chart-panel">
+   <div class="chart-head"><div><h3>Data quality profile</h3><div class="small">Check for missing values, duplicates and numeric fields.</div></div><span class="tag">06</span></div>
+   <div class="quality-grid" id="qualityMini"></div>
+   <div class="insight-list" id="qualityNotes"></div>
+  </article>
+ </div>
+</section>
+
+<section class="section" id="customers">
+ <div class="section-head"><div><h2>Customer intelligence registry</h2><p>Search, filter, rank and inspect individual customer records.</p></div><span class="tag" id="recordCount">0 RECORDS</span></div>
+ <div class="panel">
+  <div class="toolbar">
+   <div class="searchbox"><input id="search" type="search" placeholder="Search customer, ID or value..."></div>
+   <div class="filters">
+    <select id="statusFilter"><option value="">All outcomes</option><option value="Churned">Churned</option><option value="Retained">Retained</option><option value="Unknown">Unknown</option></select>
+    <select id="riskFilter"><option value="">All risk levels</option><option value="High">High risk</option><option value="Medium">Medium risk</option><option value="Low">Low risk</option></select>
+    <select id="contractFilter"><option value="">All contracts</option></select>
+    <select id="sortFilter"><option value="risk">Sort: Risk first</option><option value="revenue">Sort: Revenue high-low</option><option value="name">Sort: Customer A–Z</option><option value="tenure">Sort: Tenure low-high</option></select>
+   </div>
+  </div>
+  <div class="tablewrap"><table><thead><tr><th>Customer</th><th>Contract</th><th>Monthly charge</th><th>Tenure</th><th>Risk estimate</th><th>Recorded outcome</th><th>Details</th></tr></thead><tbody id="customerRows"></tbody></table><div class="empty" id="tableEmpty" hidden>No matching customers. Change your filters or upload a different dataset.</div></div>
+  <div class="tablefoot"><span id="tableSummary">Showing 0 customers</span><div style="display:flex;gap:7px"><button class="btn" id="prevPage">← Previous</button><button class="btn" id="nextPage">Next →</button></div></div>
+ </div>
+</section>
+
+<section class="section" id="segments">
+ <div class="section-head"><div><h2>Customer segments</h2><p>Understand customer composition and identify potential opportunities.</p></div></div>
+ <div class="grid2">
+  <article class="panel"><h3>Segment breakdown</h3><div class="small">Customer counts and their share of the loaded data.</div><div id="segmentBars" class="segment-list"></div></article>
+  <article class="panel"><h3>What the data tells us</h3><div class="small">Automatically generated observations based on available fields.</div><div id="insights" class="insight-list"></div></article>
+ </div>
+</section>
+
+<section class="section" id="quality">
+ <div class="section-head"><div><h2>Data quality & validation</h2><p>Review dataset completeness before presenting findings to your manager.</p></div><span class="tag" id="qualityBadge">VALIDATION</span></div>
+ <div class="panel">
+  <div class="quality-grid" id="qualityGrid"></div>
+  <div class="tablewrap" style="margin-top:17px"><table style="min-width:520px"><thead><tr><th>Column</th><th>Data type</th><th>Missing values</th><th>Unique values</th><th>Quality flag</th></tr></thead><tbody id="qualityRows"></tbody></table><div class="empty" id="qualityEmpty" hidden>No column information available.</div></div>
+  <div class="notice">Data-quality checks flag potential issues; they do not automatically prove a record is incorrect. Review the source and business context before deleting or changing data.</div>
+  <div style="margin-top:16px"><button class="btn" id="exportQuality">↓ Export quality report</button></div>
+ </div>
+</section>
+
+<section class="section" id="actions">
+ <div class="section-head"><div><h2>Business recommendations</h2><p>Practical next steps generated from observed data patterns.</p></div><span class="tag">DECISION SUPPORT</span></div>
+ <div class="panel">
+  <div id="recommendations"></div>
+  <div class="notice">These recommendations are exploratory, not proof of causation. Test retention interventions and compare outcomes with an appropriate baseline before adopting them.</div>
+ </div>
+</section>
+
+<section class="section" id="methodology">
+ <div class="section-head"><div><h2>Project methodology & documentation</h2><p>Use these notes to explain the project confidently during a review or presentation.</p></div></div>
+ <div class="doc-grid">
+  <article class="doc-card"><div class="doc-icon">🎯</div><h3>Business problem</h3><p>Customer churn can reduce recurring revenue and increase the cost of acquiring replacement customers. Businesses need a practical way to inspect customer behavior and prioritize retention efforts.</p></article>
+  <article class="doc-card"><div class="doc-icon">🧹</div><h3>Data preparation</h3><p>The application parses CSV rows, detects common customer fields, checks missing values and duplicate identifiers, and calculates summary metrics from available data.</p></article>
+  <article class="doc-card"><div class="doc-icon">📊</div><h3>Exploratory analysis</h3><p>Charts and segment summaries describe outcome distributions, customer value, contract categories and tenure. Findings depend on the uploaded dataset's fields and quality.</p></article>
+  <article class="doc-card"><div class="doc-icon">🧭</div><h3>Risk screening</h3><p>When a churn label exists, it is used as an observed outcome. The separate risk estimate uses transparent rules based on available attributes; it is not a trained machine-learning model.</p></article>
+  <article class="doc-card"><div class="doc-icon">💡</div><h3>Business action</h3><p>Use the findings to investigate customer issues, evaluate contracts and plan controlled retention experiments. Measure results rather than assuming that an intervention will work.</p></article>
+  <article class="doc-card"><div class="doc-icon">🚀</div><h3>Future enhancements</h3><p>A backend with a validated trained model, authentication, a database, scheduled refreshes, user roles and deployment monitoring can extend this browser-based prototype.</p></article>
+ </div>
+ <div class="notice"><strong>Important limitation:</strong> A single HTML file provides interactive browser-based analysis. It does not train or host a production ML model, guarantee future churn, or connect to your company's systems. The page uses external CDN libraries for CSV parsing and charts.</div>
+</section>
+
+<footer class="footer">RETENZA.PRO · CUSTOMER INTELLIGENCE PLATFORM<br>Browser-based analytics · Customer data stays in this page unless you choose to export it</footer>
+</main>
+</div>
+
+<div class="modal" id="customerModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+ <div class="modal-box">
+  <div class="modal-head"><div><div class="kicker">Customer profile</div><h2 id="modalTitle">Customer details</h2><div class="small" id="modalSubtitle"></div></div><button class="btn" id="closeModal">✕ Close</button></div>
+  <div id="modalContent"></div>
+ </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+"use strict";
+const $=id=>document.getElementById(id);
+const money=n=>n==null||!Number.isFinite(n)?"—":n.toLocaleString("en-IN",{style:"currency",currency:"INR",maximumFractionDigits:0});
+const number=n=>Number(n||0).toLocaleString("en-IN");
+const pct=n=>Number.isFinite(n)?n.toFixed(1)+"%":"—";
+const norm=s=>String(s??"").trim().toLowerCase().replace(/[^a-z0-9]/g,"");
+const isBlank=v=>v===null||v===undefined||String(v).trim()==="";
+const parseNum=v=>{
+ if(typeof v==="number")return Number.isFinite(v)?v:null;
+ if(isBlank(v))return null;
+ let s=String(v).trim().replace(/[₹$£€,\s]/g,"").replace(/^\((.*)\)$/,"-$1");
+ if(!s||s==="-"||s==="—")return null;
+ const n=Number(s);
+ return Number.isFinite(n)?n:null;
+};
+const unique=arr=>[...new Set(arr.filter(v=>!isBlank(v)).map(v=>String(v).trim()))];
+let customers=[],rawRows=[],headers=[],mapping={},datasetName="Demo dataset",isDemo=true,page=1,pageSize=12,charts={},toastTimer=null;
+
+const aliases={
+ id:["customerid","customer_id","id","userid","user_id","clientid","client_id","accountid","account_id","subscriberid"],
+ name:["customername","customer_name","name","fullname","full_name","clientname"],
+ churn:["churn","churned","ischurned","churnstatus","churn_status","exited","exitedcustomer","attrition","attritionflag","left","customerleft"],
+ status:["status","customerstatus","customer_status","accountstatus","account_status","state"],
+ revenue:["monthlycharges","monthly_charges","monthlycharge","monthlyrevenue","monthly_revenue","revenue","mrr","monthlyspend","monthly_spend","amount"],
+ totalCharges:["totalcharges","total_charges","totalcharge","lifetimecharges","lifetime_charges","totalrevenue","total_revenue","lifetimevalue","lifetime_value","clv","customerlifetimevalue"],
+ tenure:["tenure","tenuremonths","tenure_months","monthswithcompany","months_with_company","customerage","relationshiplength","subscriptionlength"],
+ contract:["contract","contracttype","contract_type","subscription","subscriptiontype","subscription_type","plan","plantype","plan_type"],
+ age:["age","customerageyears","customer_age"],
+ gender:["gender","sex"],
+ payment:["paymentmethod","payment_method","paymenttype","payment_type"],
+ support:["supportcalls","support_calls","customerservicecalls","customer_service_calls","complaints","complaintcount","tickets","supporttickets"],
+ satisfaction:["satisfaction","satisfaction_score","satisfactionscore","csat","nps","feedbackscore"]
+};
+
+function detectMapping(hs){
+ const out={};
+ hs.forEach(h=>{
+  const clean=norm(h);
+  for(const [field,options] of Object.entries(aliases)){
+   if(!out[field] && options.includes(clean)){
+    out[field]=h;
+   }
+  }
+ });
+ return out;
+}
+
+function getValue(row,field){
+ const h=mapping[field];
+ return (h!==undefined && row[h]!==undefined)?row[h]:null;
+}
+
+function labelOutcome(row){
+ let v=getValue(row,"churn");
+ if(v!==null&&!isBlank(v)){
+  let s=String(v).trim().toLowerCase();
+  if(["yes","true","1","churned","churn","left","exited","cancelled","canceled","lost"].includes(s))return "Churned";
+  if(["no","false","0","retained","active","stay","stayed","not churned","not_churned"].includes(s))return "Retained";
+ }
+ v=getValue(row,"status");
+ if(v!==null&&!isBlank(v)){
+  const s=String(v).trim().toLowerCase();
+  if(/churn|cancel|exit|left|lost|inactive/.test(s))return "Churned";
+  if(/active|retain|current|stay/.test(s))return "Retained";
+ }
+ return "Unknown";
+}
+
+function deriveRisk(row){
+ const outcome=labelOutcome(row);
+ if(outcome==="Churned")return {score:100,level:"High",basis:"Recorded churn"};
+ let score=10,basis=[];
+ const tenure=parseNum(getValue(row,"tenure"));
+ const contract=getValue(row,"contract");
+ const charges=parseNum(getValue(row,"revenue"));
+ const support=parseNum(getValue(row,"support"));
+ const sat=parseNum(getValue(row,"satisfaction"));
+ if(tenure!==null){if(tenure<=6){score+=25;basis.push("short tenure")}else if(tenure<=12){score+=12;basis.push("early tenure")}}
+ if(contract!==null&&/month/i.test(String(contract))){score+=25;basis.push("monthly contract")}
+ if(support!==null){if(support>=4){score+=25;basis.push("frequent support calls")}else if(support>=2){score+=12;basis.push("support calls")}}
+ if(sat!==null){if(sat<=2){score+=25;basis.push("low satisfaction")}else if(sat<=3){score+=12;basis.push("moderate satisfaction")}}
+ if(charges!==null&&charges>0&&tenure!==null&&tenure<=3){score+=8;basis.push("new paying customer")}
+ score=Math.min(95,score);
+ if(outcome==="Retained")score=Math.min(score,45);
+ return {score,level:score>=60?"High":score>=35?"Medium":"Low",basis:basis.length?basis.join(", "):"limited available indicators"};
+}
+
+function buildCustomer(row,i){
+ const id=getValue(row,"id");
+ const name=getValue(row,"name");
+ const contract=getValue(row,"contract");
+ const rev=parseNum(getValue(row,"revenue"));
+ const total=parseNum(getValue(row,"totalCharges"));
+ const tenure=parseNum(getValue(row,"tenure"));
+ const risk=deriveRisk(row);
+ return {index:i,id:isBlank(id)?"ROW-"+(i+1):String(id),name:isBlank(name)?(isBlank(id)?"Customer "+(i+1):String(id)):String(name),contract:isBlank(contract)?"Unknown":String(contract),revenue:rev,total,tenure,outcome:labelOutcome(row),risk,raw:row};
+}
+
+function stats(){
+ const n=customers.length;
+ const churned=customers.filter(c=>c.outcome==="Churned").length;
+ const retained=customers.filter(c=>c.outcome==="Retained").length;
+ const unknown=customers.filter(c=>c.outcome==="Unknown").length;
+ const revs=customers.map(c=>c.revenue).filter(v=>v!==null);
+ const tenures=customers.map(c=>c.tenure).filter(v=>v!==null);
+ const risks=customers.filter(c=>c.risk.level==="High"&&c.outcome!=="Churned").length;
+ const totalRev=revs.reduce((a,b)=>a+b,0);
+ const totalCells=rawRows.length*(headers.length||1);
+ let missing=0;
+ rawRows.forEach(r=>headers.forEach(h=>{if(isBlank(r[h]))missing++}));
+ return {n,churned,retained,unknown,churnRate:n?churned/n*100:0,revCount:revs.length,totalRev,avgRev:revs.length?totalRev/revs.length:null,avgTenure:tenures.length?tenures.reduce((a,b)=>a+b,0)/tenures.length:null,risks,missing,totalCells,complete:totalCells?(totalCells-missing)/totalCells*100:0};
+}
+
+function showToast(msg){$("toast").textContent=msg;$("toast").classList.add("show");clearTimeout(toastTimer);toastTimer=setTimeout(()=>$("toast").classList.remove("show"),2700)}
+function updateText(id,value){$(id).textContent=value}
+
+function makeDemo(){
+ headers=["customerID","gender","tenure","Contract","MonthlyCharges","TotalCharges","Churn","PaymentMethod","SupportCalls"];
+ rawRows=[];
+ const contracts=["Month-to-month","One year","Two year"];
+ for(let i=0;i<150;i++){
+  const tenure=(i*7+5)%73;
+  const monthly=35+((i*37)%100);
+  const contract=contracts[i%3];
+  const churn=(contract==="Month-to-month"&&tenure<16&&i%3!==0)||(i%17===0&&tenure<25);
+  rawRows.push({customerID:"DEMO-"+String(10001+i),gender:i%2?"Female":"Male",tenure,Contract:contract,MonthlyCharges:monthly.toFixed(2),TotalCharges:(monthly*tenure).toFixed(2),Churn:churn?"Yes":"No",PaymentMethod:["Electronic check","Mailed check","Bank transfer","Credit card"][i%4],SupportCalls:i%6});
+ }
+ mapping=detectMapping(headers);customers=rawRows.map(buildCustomer);datasetName="Synthetic demonstration data";isDemo=true;
+ refreshAll();
+}
+
+function refreshKpis(){
+ const s=stats();
+ updateText("mTotal",number(s.n));
+ updateText("mTotalFoot",`${number(headers.length)} columns · ${datasetName}`);
+ updateText("mChurn",mapping.churn||mapping.status?pct(s.churnRate):"N/A");
+ updateText("mChurnFoot",mapping.churn?"Calculated from recorded churn labels":mapping.status?"Inferred from status values":"No churn/status field detected");
+ updateText("mRevenue",mapping.revenue?money(s.totalRev):"N/A");
+ updateText("mRevenueFoot",mapping.revenue?`${number(s.revCount)} numeric records · sum of monthly charges`:"No monthly revenue field detected");
+ updateText("mAvg",mapping.revenue?money(s.avgRev):"N/A");
+ updateText("mAvgFoot",mapping.revenue?"Average monthly charge per customer with a valid value":"Upload a dataset with a charge field");
+ updateText("mRisk",number(s.risks));
+ updateText("mRiskFoot",`${pct(s.n?s.risks/s.n*100:0)} screened as high risk; recorded churn is separate`);
+ updateText("mTenure",mapping.tenure&&s.avgTenure!==null?s.avgTenure.toFixed(1)+" mo":"N/A");
+ updateText("mChurned",number(s.churned));
+ updateText("mComplete",pct(s.complete));
+ updateText("mCompleteFoot",`${number(s.missing)} missing cells across ${number(s.totalCells)} cells`);
+ updateText("snapshotCaption",`${datasetName} · ${number(s.n)} customer records · ${number(headers.length)} fields`);
+ updateText("recordCount",number(s.n)+" RECORDS");
+ updateText("lastUpdated","UPDATED "+new Date().toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}));
+ updateText("sideDataset",datasetName);
+ updateText("dataBadge",isDemo?"● DEMO DATA":"● UPLOADED CSV");
+ $("dataBadge").style.color=isDemo?"var(--amber)":"var(--green)";
+ updateText("fileTitle",isDemo?"Bring your customer data to life":datasetName);
+ updateText("fileDesc",isDemo?"Choose a CSV file. Column names are detected automatically where possible.":`${number(s.n)} records loaded. Select another CSV to replace the current dataset.`);
+}
+
+function chartOptions(extra={}){
+ return {responsive:true,maintainAspectRatio:false,plugins:{legend:{position:"bottom",labels:{color:getComputedStyle(document.body).getPropertyValue("--muted").trim()||"#7c879f",usePointStyle:true,boxWidth:8,padding:16,font:{size:10}}}},...extra};
+}
+
+function setChart(id,type,labels,datasets,opts={}){
+ const canvas=$(id);
+ if(!canvas||!window.Chart)return;
+ if(charts[id])charts[id].destroy();
+ const color=getComputedStyle(document.body).getPropertyValue("--muted").trim()||"#7c879f";
+ const base=chartOptions();
+ base.scales=opts.scales||{x:{ticks:{color, font:{size:10}},grid:{display:false}},y:{ticks:{color,font:{size:10}},grid:{color:"rgba(120,130,160,.13)"}}};
+ if(opts.plugins)base.plugins={...base.plugins,...opts.plugins};
+ charts[id]=new Chart(canvas,{type,data:{labels,datasets},options:{...base,...opts.options}});
+}
+
+const palette=["#6558ee","#25a887","#e4a13a","#e45d75","#399dc5","#a07be8","#64748b","#dd7a47"];
+
+function refreshCharts(){
+ const s=stats();
+ setChart("outcomeChart","doughnut",["Churned","Retained","Unknown"],[{data:[s.churned,s.retained,s.unknown],backgroundColor:["#e45d75","#159d78","#aab3c6"],borderWidth:0,hoverOffset:7}],{options:{cutout:"70%"}});
+ const riskCounts=["High","Medium","Low"].map(level=>customers.filter(c=>c.risk.level===level&&c.outcome!=="Churned").length);
+ setChart("riskChart","doughnut",["High","Medium","Low"],[{data:riskCounts,backgroundColor:["#e45d75","#e4a13a","#159d78"],borderWidth:0,hoverOffset:7}],{options:{cutout:"70%"}});
+ 
+ const contractMap={};
+ customers.forEach(c=>{if(c.revenue!==null){contractMap[c.contract]??={sum:0,n:0};contractMap[c.contract].sum+=c.revenue;contractMap[c.contract].n++}});
+ const cs=Object.entries(contractMap).sort((a,b)=>b[1].sum-a[1].sum);
+ setChart("contractChart","bar",cs.length?cs.map(x=>x[0]):["No Contract Data"],[{label:"Total monthly charges",data:cs.length?cs.map(x=>Math.round(x[1].sum)):[0],backgroundColor:palette[0],borderRadius:7}],{options:{plugins:{legend:{display:false}}}});
+ 
+ const bands=[["0–6 mo",0,6],["7–12 mo",7,12],["13–24 mo",13,24],["25–48 mo",25,48],["49+ mo",49,Infinity]];
+ const tb=bands.map(([label,a,b])=>({label,n:customers.filter(c=>c.tenure!==null&&c.tenure>=a&&c.tenure<=b).length}));
+ setChart("tenureChart","bar",tb.map(x=>x.label),[{label:"Customers",data:tb.map(x=>x.n),backgroundColor:"#25a887",borderRadius:7}],{options:{plugins:{legend:{display:false}}}});
+ 
+ const values=customers.map(c=>c.revenue).filter(v=>v!==null&&v>=0);
+ const ranges=[["0–49",0,49.99],["50–99",50,99.99],["100–149",100,149.99],["150–199",150,199.99],["200+",200,Infinity]];
+ const vc=ranges.map(([label,a,b])=>({label,n:values.filter(v=>v>=a&&v<=b).length}));
+ setChart("valueChart","bar",vc.map(x=>x.label),[{label:"Customers",data:vc.map(x=>x.n),backgroundColor:"#8878ff",borderRadius:7}],{options:{plugins:{legend:{display:false}}}});
+}
+
+function renderSegments(){
+ const s=stats();
+ const groups=[
+  {label:"Recorded churn",n:s.churned,color:"#e45d75"},
+  {label:"Retained",n:s.retained,color:"#159d78"},
+  {label:"Unknown outcome",n:s.unknown,color:"#aab3c6"},
+  {label:"High-risk screen",n:s.risks,color:"#e4a13a"}
+ ];
+ $("segmentBars").innerHTML=groups.map(g=>`<div class="segment-row"><span>${g.label}</span><div class="segment-track"><span style="width:${s.n?Math.min(100,g.n/s.n*100):0}%;background:${g.color}"></span></div><span class="segment-count">${number(g.n)}</span></div>`).join("");
+ const notes=[];
+ if(mapping.churn||mapping.status){
+  notes.push(["◎","Recorded outcomes",`${s.churned} customers are labeled churned, ${s.retained} retained, and ${s.unknown} have unknown outcomes. The recorded churn rate is ${pct(s.churnRate)}.`]);
+ }else notes.push(["ⓘ","Outcome data unavailable","No recognized churn or status field was found. Add an outcome column for a measured churn-rate calculation."]);
+ if(mapping.contract){
+  const grouped={};customers.forEach(c=>{grouped[c.contract]??={n:0,churn:0};grouped[c.contract].n++;if(c.outcome==="Churned")grouped[c.contract].churn++});
+  const top=Object.entries(grouped).sort((a,b)=>(b[1].churn/(b[1].n||1))-(a[1].churn/(a[1].n||1)))[0];
+  if(top)notes.push(["◈","Contract pattern",`${top[0]} has the highest observed churn share among contract categories in this dataset (${pct(top[1].churn/(top[1].n||1)*100)}). Check sample sizes before drawing conclusions.`]);
+ }
+ if(mapping.revenue)notes.push(["₹","Revenue concentration",`The sum of detected monthly charges is ${money(s.totalRev)} across ${s.revCount} records with numeric values. This is a snapshot, not necessarily recognized accounting revenue.`]);
+ if(mapping.tenure)notes.push(["◷","Customer tenure",`Average recorded tenure is ${s.avgTenure===null?"unavailable":s.avgTenure.toFixed(1)+" months"}. Investigate early-tenure churn if the observed outcomes support it.`]);
+ if(!mapping.contract&&!mapping.tenure)notes.push(["↗","Improve the dataset","Include contract type, tenure, charges and a churn label to enable more useful customer retention analysis."]);
+ $("insights").innerHTML=notes.map(n=>`<div class="insight"><div class="insight-icon">${n[0]}</div><div><strong>${n[1]}</strong><p>${n[2]}</p></div></div>`).join("");
+}
+
+function getQuality(){
+ const total=rawRows.length*headers.length;
+ let missing=0;
+ headers.forEach(h=>rawRows.forEach(r=>{if(isBlank(r[h]))missing++}));
+ const idField=mapping.id;
+ const ids=idField?rawRows.map(r=>String(r[idField]??"").trim()).filter(Boolean):[];
+ const dup=ids.length-new Set(ids).size;
+ return {missing,total,dup,idField,emptyRows:rawRows.filter(r=>headers.every(h=>isBlank(r[h]))).length};
+}
+
+function renderQuality(){
+ const q=getQuality(),s=stats();
+ const items=[
+  ["Rows",number(rawRows.length),"Customer records"],
+  ["Columns",number(headers.length),"Available fields"],
+  ["Missing cells",number(q.missing),pct(q.total?(q.total-q.missing)/q.total*100:0)+" complete"],
+  ["Duplicate IDs",q.idField?number(q.dup):"N/A",q.idField?"Detected identifier duplicates":"No ID column detected"],
+  ["Empty rows",number(q.emptyRows),"Entirely blank records"],
+  ["Numeric fields",number(headers.filter(h=>rawRows.some(r=>parseNum(r[h])!==null)).length),"At least one numeric value"]
+ ];
+ $("qualityGrid").innerHTML=items.map(x=>`<div class="quality-item"><span>${x[0]}</span><strong>${x[1]}</strong><span>${x[2]}</span></div>`).join("");
+ const per=headers.map(h=>{
+  const vals=rawRows.map(r=>r[h]);
+  const missing=vals.filter(isBlank).length;
+  const uniq=unique(vals).length;
+  const numeric=vals.filter(v=>!isBlank(v)).length>0&&vals.filter(v=>!isBlank(v)).every(v=>parseNum(v)!==null);
+  const flag=missing===0?"Complete":missing/Math.max(1,vals.length)>.2?"Many missing":"Has missing";
+  return {h,missing,uniq,numeric,flag};
+ });
+ $("qualityRows").innerHTML=per.map(x=>`<tr><td><strong>${escapeHtml(x.h)}</strong></td><td>${x.numeric?"Numeric":"Text / mixed"}</td><td>${number(x.missing)}</td><td>${number(x.uniq)}</td><td><span class="status ${x.missing===0?"healthy":x.missing/Math.max(1,rawRows.length)>.2?"churn":"risk"}">${x.flag}</span></td></tr>`).join("");
+ $("qualityEmpty").hidden=headers.length>0;
+ $("qualityBadge").textContent=q.missing===0&&q.dup===0?"NO BASIC ISSUES DETECTED":"REVIEW "+number(q.missing+q.dup)+" FLAGS";
+ const mini=[
+  ["Missing cells",q.missing],
+  ["Duplicate IDs",q.dup],
+  ["Empty rows",q.emptyRows]
+ ];
+ $("qualityMini").innerHTML=mini.map(x=>`<div class="quality-item"><span>${x[0]}</span><strong>${number(x[1])}</strong><span>${x[1]?"Review recommended":"None detected"}</span></div>`).join("");
+ const qnotes=[
+  ["Data completeness",`${pct(s.complete)} of all cells contain values. Missingness can affect metrics if blank fields are important.`],
+  ["Duplicate identifiers",q.idField?`${number(q.dup)} repeated identifier(s) were detected in ${q.idField}. Confirm whether these are genuine duplicate customers or multiple valid records.`:"No recognized customer ID column. Add a unique identifier to support reliable deduplication."],
+  ["Numeric validation",`Numeric values are inferred from the contents of each column. Check currency units and unusual values before interpreting totals.`]
+ ];
+ $("qualityNotes").innerHTML=qnotes.map(x=>`<div class="insight"><div class="insight-icon">✓</div><div><strong>${x[0]}</strong><p>${x[1]}</p></div></div>`).join("");
+}
+
+function renderRecommendations(){
+ const s=stats();
+ const items=[];
+ if(mapping.churn||mapping.status){
+  if(s.churnRate>20)items.push(["Prioritize churn investigation",`Recorded churn is ${pct(s.churnRate)}. Review churn reasons, customer feedback and service issues.`]);
+  else items.push(["Monitor customer retention",`Recorded churn is ${pct(s.churnRate)}. Track the rate over time and compare customer groups.`]);
+ }else items.push(["Add a churn outcome field","The dataset does not have a recognized churn/status column."]);
+ if(mapping.contract)items.push(["Review contract performance","Compare observed churn and average charges across contract types."]);
+ if(mapping.tenure)items.push(["Support early-tenure customers","Inspect new-customer onboarding and early cancellations."]);
+ if(mapping.revenue)items.push(["Protect recurring revenue","Use monthly charge and risk estimates to prioritize high-value accounts."]);
+ $("recommendations").innerHTML=items.map((x,i)=>`<article class="recommendation"><div class="rec-num">${String(i+1).padStart(2,"0")}</div><div><h3>${x[0]}</h3><p>${x[1]}</p></div></article>`).join("");
+}
+
+function escapeHtml(s){
+ return String(s??"").replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[ch]));
+}
+
+function renderFilters(){
+ const sel=$("contractFilter"),old=sel.value;
+ const vals=unique(customers.map(c=>c.contract)).sort();
+ sel.innerHTML='<option value="">All contracts</option>'+vals.map(v=>`<option value="${escapeHtml(v)}">${escapeHtml(v)}</option>`).join("");
+ if(vals.includes(old))sel.value=old;
+}
+
+function filteredCustomers(){
+ const q=$("search").value.trim().toLowerCase(),outcome=$("statusFilter").value,risk=$("riskFilter").value,contract=$("contractFilter").value,sort=$("sortFilter").value;
+ let list=customers.filter(c=>{
+  const searchText=[c.id,c.name,c.contract,...headers.map(h=>c.raw[h])].join(" ").toLowerCase();
+  return (!q||searchText.includes(q))&&(!outcome||c.outcome===outcome)&&(!risk||c.risk.level===risk)&&(!contract||c.contract===contract);
+ });
+ list.sort((a,b)=>sort==="name"?a.name.localeCompare(b.name):sort==="revenue"?(b.revenue??-Infinity)-(a.revenue??-Infinity):sort==="tenure"?(a.tenure??Infinity)-(b.tenure??Infinity):b.risk.score-a.risk.score);
+ return list;
+}
+
+function renderTable(){
+ const list=filteredCustomers(),pages=Math.max(1,Math.ceil(list.length/pageSize));
+ page=Math.max(1,Math.min(page,pages));
+ const shown=list.slice((page-1)*pageSize,page*pageSize);
+ $("customerRows").innerHTML=shown.map(c=>{
+  const col=c.risk.level==="High"?"var(--red)":c.risk.level==="Medium"?"var(--amber)":"var(--green)";
+  const statusClass=c.outcome==="Churned"?"churn":c.outcome==="Retained"?"healthy":"risk";
+  return `<tr><td><div class="namecell"><div class="avatar">${escapeHtml(c.name.split(/\s+/).map(x=>x[0]).slice(0,2).join("").toUpperCase())}</div><div><strong>${escapeHtml(c.name)}</strong><small>${escapeHtml(c.id)}</small></div></div></td><td>${escapeHtml(c.contract)}</td><td>${c.revenue===null?"—":money(c.revenue)}</td><td>${c.tenure===null?"—":number(c.tenure)+" mo"}</td><td><div class="riskbar"><div class="risktrack"><span style="width:${c.risk.score}%;background:${col}"></span></div><strong>${c.risk.score}%</strong></div><small style="color:var(--muted)">${escapeHtml(c.risk.level)}</small></td><td><span class="status ${statusClass}">${escapeHtml(c.outcome)}</span></td><td><button class="btn soft detailBtn" data-index="${c.index}">View</button></td></tr>`;
+ }).join("");
+ $("tableEmpty").hidden=list.length>0;
+ updateText("tableSummary",list.length?`Showing ${number((page-1)*pageSize+1)}–${number(Math.min(page*pageSize,list.length))} of ${number(list.length)} matching customers`:"No matching customers");
+ $("prevPage").disabled=page<=1;$("nextPage").disabled=page>=pages;
+}
+
+function renderAllInsights(){
+ renderSegments();renderQuality();renderRecommendations();renderFilters();renderTable();
+}
+
+function refreshAll(){
+ refreshKpis();refreshCharts();renderAllInsights();
+ $("mappingNotice").hidden=false;
+ const mapped=Object.entries(mapping).map(([k,v])=>`${k}: ${v}`).join(" · ");
+ $("mappingNotice").textContent="Detected fields: "+(mapped||"No common customer fields found.")+".";
+}
+
+function openCustomer(index){
+ const c=customers.find(x=>x.index===index);if(!c)return;
+ updateText("modalTitle",c.name);
+ updateText("modalSubtitle",`${c.id} · ${c.outcome} · ${c.risk.level} rule-based risk`);
+ const items=[
+  ["Customer ID",c.id],["Recorded outcome",c.outcome],["Risk estimate",c.risk.score+"% ("+c.risk.level+")"],
+  ["Risk basis",c.risk.basis],["Contract",c.contract],["Monthly charge",c.revenue===null?"Not available":money(c.revenue)],
+  ["Total charges",c.total===null?"Not available":money(c.total)],["Tenure",c.tenure===null?"Not available":c.tenure+" months"]
+ ];
+ $("modalContent").innerHTML=`<div class="detail-grid">${items.map(x=>`<div class="detail"><small>${escapeHtml(x[0])}</small><strong>${escapeHtml(x[1])}</strong></div>`).join("")}</div>`;
+ $("customerModal").classList.add("open");
+}
+
+function exportCsv(filename,rows){
+ if(!window.Papa)return;
+ const csv=Papa.unparse(rows,{quotes:true});
+ const blob=new Blob(["\uFEFF"+csv],{type:"text/csv;charset=utf-8;"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+
+function exportCustomers(){
+ const rows=customers.map(c=>({...c.raw,_dashboard_customer_name:c.name,_recorded_outcome:c.outcome,_rule_based_risk_score:c.risk.score}));
+ exportCsv("retenza_customer_analysis.csv",rows);
+}
+
+function exportQuality(){
+ const q=getQuality();
+ const rows=headers.map(h=>({column:h,missing_values:rawRows.filter(r=>isBlank(r[h])).length}));
+ exportCsv("retenza_data_quality_report.csv",rows);
+}
+
+function exportReport(){
+ const s=stats();
+ const rows=[["Retenza Pro Customer Intelligence Report","Value"],["Customers",s.n],["Churned",s.churned]];
+ exportCsv("retenza_executive_report.csv",rows);
+}
+
+function loadFile(file){
+ if(!file)return;
+ if(!/\.csv$/i.test(file.name)){showToast("Please choose a .csv file.");return}
+ if(!window.Papa){showToast("CSV parser failed to load.");return}
+ Papa.parse(file,{header:true,skipEmptyLines:"greedy",complete:results=>{
+  try{
+   const hs=results.meta.fields||[];
+   if(!hs.length||!results.data.length)throw new Error("No usable rows or headers found.");
+   headers=hs.map(h=>String(h).trim());
+   rawRows=results.data.map(r=>{const out={};headers.forEach(h=>out[h]=r[h]??"");return out}).filter(r=>headers.some(h=>!isBlank(r[h])));
+   mapping=detectMapping(headers);
+   customers=rawRows.map(buildCustomer);
+   if(!customers.length)throw new Error("No customer records found.");
+   datasetName=file.name;isDemo=false;page=1;
+   refreshAll();showToast(`Loaded ${number(customers.length)} records from ${file.name}`);
+  }catch(err){showToast("Could not analyze CSV: "+err.message)}
+ },error:err=>{showToast("CSV parsing error: "+err.message)}});
+}
+
+$("uploadBtn").addEventListener("click",()=>$("fileInput").click());
+$("fileInput").addEventListener("change",e=>{loadFile(e.target.files[0]);e.target.value=""});
+$("sampleBtn").addEventListener("click",()=>{showToast("Using demonstration data.")});
+$("dropZone").addEventListener("dragover",e=>{e.preventDefault();$("dropZone").style.borderColor="var(--primary)"});
+$("dropZone").addEventListener("dragleave",()=>$("dropZone").style.borderColor="");
+$("dropZone").addEventListener("drop",e=>{e.preventDefault();$("dropZone").style.borderColor="";loadFile(e.dataTransfer.files[0])});
+
+["search","statusFilter","riskFilter","contractFilter","sortFilter"].forEach(id=>{
+ $(id).addEventListener(id==="search"?"input":"change",()=>{page=1;renderTable()});
+});
+$("prevPage").addEventListener("click",()=>{page--;renderTable()});
+$("nextPage").addEventListener("click",()=>{page++;renderTable()});
+$("customerRows").addEventListener("click",e=>{const b=e.target.closest(".detailBtn");if(b)openCustomer(Number(b.dataset.index))});
+$("closeModal").addEventListener("click",()=>$("customerModal").classList.remove("open"));
+$("customerModal").addEventListener("click",e=>{
+ if(e.target===$("customerModal"))$("customerModal").classList.remove("open");
+});
+
+document.addEventListener("keydown",e=>{
+ if(e.key==="Escape")$("customerModal").classList.remove("open");
+});
+
+$("themeBtn").addEventListener("click",()=>{
+ const dark=document.documentElement.getAttribute("data-theme")!=="dark";
+ document.documentElement.setAttribute("data-theme",dark?"dark":"light");
+ $("themeBtn").textContent=dark?"☀ Light mode":"☾ Dark mode";
+ refreshCharts();
+});
+
+$("resetBtn").addEventListener("click",()=>{
+ if(confirm("Replace current data with demo data?"))makeDemo();
+});
+
+$("topExport").addEventListener("click",exportReport);
+$("exportQuality").addEventListener("click",exportQuality);
+
+document.querySelectorAll(".nav").forEach(a=>a.addEventListener("click",()=>{
+ document.querySelectorAll(".nav").forEach(n=>n.classList.remove("active"));
+ a.classList.add("active");
+}));
+
+makeDemo();
+})();
+</script>
+</body>
+</html>
